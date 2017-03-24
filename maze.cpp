@@ -167,6 +167,10 @@ public:
     }
 };
 
+
+/*
+    maze [-s, -s=DELAY] [SIZE]
+*/
 int main(int argc, char* argv[]) {
     srand(time(NULL));
     
