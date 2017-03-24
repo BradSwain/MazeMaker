@@ -126,7 +126,7 @@ class Maze {
            str += "_";
         }
         str += "\n";
-        for (int row = 0; row < size; row++) {
+        for (int row = 0; row < size-1; row++) {
             for (int col = 0; col < size; col++) {
                 int i = size*row + col;
                 str += maze[i].left? ' ' : '|';
@@ -134,6 +134,12 @@ class Maze {
             }
             str += "|\n";
         }
+        for (int col = 0; col < size; col++) {
+            int i = size*(size-1) + col;
+            str += maze[i].left? '_' : '|';
+            str += maze[i].down? ' ' : '_';
+        }
+        str += "|\n";
         
         return str;
     }
