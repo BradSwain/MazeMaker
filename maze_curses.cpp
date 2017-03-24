@@ -36,7 +36,9 @@ void read_input_flags(int argc, char* argv[]) {
             GLOB_SIZE = std::stoi(argv[argc-1]);
             struct winsize win_size;
             ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
-            int max_size = (win_size.ws_col-1)/2;
+            int max_col = (win_size.ws_col-1)/2;
+            int max_row = win_size.ws_row-1;
+            int max_size = max_col < max_row? max_col : max_row; 
             GLOB_SIZE = GLOB_SIZE > max_size? max_size : GLOB_SIZE;
         } catch(...) {/*ssshhh*/}
     }
