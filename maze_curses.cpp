@@ -13,37 +13,51 @@
 #define DEFAULT_STEP 100
 int GLOB_SIZE;
 int GLOB_SLOW_STEP;
+int GLOB_ENDLESS;
 
 void read_input_flags(int argc, char* argv[]) {
     GLOB_SIZE = DEFAULT_SIZE;
     GLOB_SLOW_STEP = DEFAULT_STEP;
+    GLOB_ENDLESS = 0;
     if (argc > 1) {
         int i = 0;
         for (i = 1; i < argc; i++) {
-            if (argv[i][0] == '-' && argv[i][1] == 's') {
-                GLOB_SLOW_STEP = DEFAULT_STEP;
-                std::string flag = std::string(argv[i]);
-                if (flag.size() > 2 && flag[2] == '=') {
-                    try {
-                        GLOB_SLOW_STEP = std::stoi(flag.substr(3));
-                    } catch (...) {/*Only dreams now*/}
+            std::string arg = std::string(argv[i]);
+            if (arg[0] == '-' && arg.size() > 1) {
+                switch(arg[1]) {
+                    //Step
+                    case 's':
+                        GLOB_SLOW_STEP = DEFAULT_STEP;
+                        if (arg.size() > 2 && arg[2] == '=') {
+                            try {
+                                GLOB_SLOW_STEP = std::stoi(arg.substr(3));
+                            } catch (...) {/*Sssshhhh*/}
+                        }
+                    break;
+                    //Endless
+                    case 'e':
+                        GLOB_ENDLESS = 1;
+                    break;
+                    default:
+                        std::cout << arg << " is not a recognised flag.\t\t\tYou fool!\n";
+                    break;
                 }
-                break;
+            } else if (i == argc - 1) {
+                try {
+                    GLOB_SIZE = std::stoi(arg);
+                    struct winsize win_size;
+                    ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
+                    int max_col = (win_size.ws_col-1)/2;
+                    int max_row = win_size.ws_row-1;
+                    int max_size = max_col < max_row? max_col : max_row; 
+                    GLOB_SIZE = GLOB_SIZE > max_size? max_size : GLOB_SIZE;
+                } catch(...) {/*Only dreams now*/}
             }
         }
-        
-        try {
-            GLOB_SIZE = std::stoi(argv[argc-1]);
-            struct winsize win_size;
-            ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
-            int max_col = (win_size.ws_col-1)/2;
-            int max_row = win_size.ws_row-1;
-            int max_size = max_col < max_row? max_col : max_row; 
-            GLOB_SIZE = GLOB_SIZE > max_size? max_size : GLOB_SIZE;
-        } catch(...) {/*ssshhh*/}
     }
 }
 void draw_empty_board() {
+    move(0,0);
     std::string top(GLOB_SIZE*2 + 1, '_');
     top += '\n';
     std::string side = "";
@@ -267,14 +281,19 @@ int main(int argc, char* argv[]) {
     
     initscr();
     curs_set(0);
-    draw_empty_board();
-    Maze m(GLOB_SIZE);
-    move(1,1);
-    refresh();
+    Maze* m = nullptr;
+    do {
+        draw_empty_board();
+        delete m; //stack overflow this should be fine on nullptr...we shall see...
+        m = new Maze(GLOB_SIZE);
+        move(1,1);
+        refresh();
+    } while(GLOB_ENDLESS);
+    
     getch();
     endwin();
     
-    std::cout<<m.create_string();
+    std::cout<<m->create_string();
     
     return 0;
 }
