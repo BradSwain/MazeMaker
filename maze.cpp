@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <time.h>
+#include <string>
 
 class Maze {
     
@@ -14,6 +15,7 @@ class Maze {
     Node* maze;
     int size;
     std::stack<int> stack;
+    std::string string_representation;
     
     
     int check_up(int idx) {
@@ -110,9 +112,29 @@ class Maze {
         
         return next_idx;
     }
+    
+    std::string create_string() {
+        std::string str = "";
+        for (int col = 0; col < size*2 +1; col++) {
+           str += "_";
+        }
+        str += "\n";
+        for (int row = 0; row < size; row++) {
+            for (int col = 0; col < size; col++) {
+                int i = size*row + col;
+                str += maze[i].left? ' ' : '|';
+                str += maze[i].down? ' ' : '_';
+            }
+            str += "|\n";
+        }
+        
+        return str;
+    }
   
 public:
 
+    std::string to_string(){return string_representation;}
+    
     Maze(int _size = 10) : size(_size) {
         int len = size * size;
         maze = new Node[len];
@@ -126,28 +148,13 @@ public:
         while(current_idx != -1) {
             current_idx = check_next(current_idx);
         }
-    }
-    
-    void print() {
-        for (int col = 0; col < size*2 +1; col++) {
-            std::cout<<"_";
-        }
-        std::cout<<"\n";
-        for (int row = 0; row < size; row++) {
-            for (int col = 0; col < size; col++) {
-                int i = size*row + col;
-                char str[2];
-                str[0] = maze[i].left? ' ' : '|';
-                str[1] = maze[i].down? ' ' : '_';
-                std::cout << str[0] << str[1];
-            }
-            std::cout << "|\n";
-        }
+        
+        string_representation = create_string(); 
     }
 };
 
 int main() {
     srand(time(NULL));
     Maze m(10);
-    m.print();
+    std::cout << m.to_string();
 }
