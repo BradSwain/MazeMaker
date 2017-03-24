@@ -153,8 +153,16 @@ public:
     }
 };
 
-int main() {
+int main(int argc, char* argv[]) {
     srand(time(NULL));
-    Maze m(10);
+    
+    int size = 10;
+    if (argc > 1) {
+        try {
+            size = std::stoi(argv[1]);
+            size = size > 30? 30 : size;
+        } catch(...) {/*ssshhh*/}
+    }
+    Maze m(size);
     std::cout << m.to_string();
 }
