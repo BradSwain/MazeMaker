@@ -16,7 +16,7 @@ int GLOB_SLOW_STEP;
 
 void read_input_flags(int argc, char* argv[]) {
     GLOB_SIZE = DEFAULT_SIZE;
-    GLOB_SLOW_STEP = 0;
+    GLOB_SLOW_STEP = DEFAULT_STEP;
     if (argc > 1) {
         int i = 0;
         for (i = 1; i < argc; i++) {
@@ -229,6 +229,9 @@ public:
             current_idx = check_next(current_idx);
         }
     }
+    ~Maze() {
+        delete []maze;
+    }
     
     std::string create_string() {
         std::string str = "";
@@ -261,6 +264,7 @@ int main(int argc, char* argv[]) {
     
     
     initscr();
+    curs_set(0);
     draw_empty_board();
     Maze m(GLOB_SIZE);
     move(1,1);
