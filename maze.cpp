@@ -5,6 +5,8 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #define DEFAULT_SIZE 10     //10X10 grid
 #define DEFAULT_SLOW_MO 20 //in ms
@@ -187,7 +189,10 @@ int main(int argc, char* argv[]) {
         
         try {
             size = std::stoi(argv[argc-1]);
-            size = size > 30? 30 : size;
+            struct winsize win_size;
+            ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
+            int max_size = (win_size.ws_col-1)/2;
+            size = size > max_size? max_size : size;
         } catch(...) {/*ssshhh*/}
     }
     Maze m(size);
