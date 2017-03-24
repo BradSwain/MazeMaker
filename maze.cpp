@@ -3,6 +3,11 @@
 #include <iostream>
 #include <time.h>
 #include <string>
+#include <chrono>
+#include <thread>
+
+#define DEFAULT_SIZE 10     //10X10 grid
+#define DEFAULT_SLOW_MO 20 //in ms
 
 class Maze {
     
@@ -151,18 +156,44 @@ public:
         
         string_representation = create_string(); 
     }
+    
+    void print_step(int delay) {
+        for(int i = 0; i < string_representation.size(); i++) {
+            std::cout<<string_representation[i] << std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+        }
+    }
 };
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
     
     int size = 10;
+    int slow_mo = 0;
     if (argc > 1) {
+        int i = 0;
+        for (i = 1; i < argc; i++) {
+            if (argv[i][0] == '-' && argv[i][1] == 's') {
+                slow_mo = DEFAULT_SLOW_MO;
+                std::string flag = std::string(argv[i]);
+                if (flag.size() > 2 && flag[2] == '=') {
+                    try {
+                        slow_mo = std::stoi(flag.substr(3));
+                    } catch (...) {/*Only dreams now*/}
+                }
+                break;
+            }
+        }
+        
         try {
-            size = std::stoi(argv[1]);
+            size = std::stoi(argv[argc-1]);
             size = size > 30? 30 : size;
         } catch(...) {/*ssshhh*/}
     }
     Maze m(size);
-    std::cout << m.to_string();
+    if (slow_mo > 0) {
+        m.print_step(slow_mo);
+    } else {
+        std::cout << m.to_string();
+    }
 }
