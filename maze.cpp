@@ -14,32 +14,6 @@ bool Maze::is_idx_left(int i) {
     return i % cols == 0;
 }
 
-void Maze::draw_idx(int i, bool recurse = true) {
-    /*char middle[4];
-    middle[3] = '\0';
-    if (is_idx_bottom(i)) {
-        middle[0] = maze[i].left? '_' : '|';
-        middle[1] = '_';
-        middle[2] = maze[i].right? '_' : '|';
-    } else {
-        middle[0] = maze[i].left? ' ' : '|';
-        middle[1] = maze[i].down? ' ' : '_';
-        middle[2] = maze[i].right? ' ' : '|';
-    }
-    mvprintw(maze[i].row + 1, maze[i].col*2, middle);
-    
-    if (recurse) {
-        if (!is_idx_bottom(i)) {
-            draw_idx(i + size, false);
-        }
-        if (!is_idx_top(i)) {
-            draw_idx(i - size, false);
-        }
-    }
-    
-    refresh();*/
-}
-
 int Maze::check_up(int idx, std::stack<int>& stack) {
     if (!is_idx_top(idx) && !maze[idx - cols].visited) {
         stack.push(idx);
@@ -143,6 +117,11 @@ std::string Maze::to_string() {
             return str;
         }
         
+        //build the maze if not yet built
+        if (!maze[0].visited) {
+            build_maze();
+        }
+        
         //else actually create the string
         for (int col = 0; col < cols*2 +1; col++) {
            str += "_";
@@ -165,3 +144,83 @@ std::string Maze::to_string() {
         
         return str;
     }
+    
+
+
+void MazeCurses::queue_draw(int i, int color = 1) {
+    PrintData* data = new PrintData();
+    data->color = color;
+    data->row = i/cols;
+    data->col = (i%cols)*2 + 1 ;
+
+    char empty_delimiter = is_idx_bottom(i)? '_' : ' ';
+    //left, bottom, right
+    data->str[0] = maze[i].left? empty_delimiter : '|';
+    data->str[1] = maze[i].down? empty_delimiter : '_';
+    data->str[2] = !is_idx_right(i) && maze[i+1].left? empty_delimiter : '|';
+    //top
+    data->str[3] = !is_idx_top(i) && maze[i-cols].down? ' ' : '_';
+    
+   draw_buffer.write(data);
+}
+
+void MazeCurses::draw() {
+    const PrintData* data = draw_buffer.read();
+    while (data != PrintData::kill) {
+        char buff[4];
+        buff[0] = data->str[3];
+        buff[1] = '\0';
+        mvprintw(data->row, data->col, buff);
+        
+        buff[0] = data->str[0];
+        buff[1] = data->str[1];
+        buff[2] = data->str[2];
+        buff[3] = '\0';
+        mvprintw(data->row+1, data->col-1, buff);
+        
+        refresh();
+        
+        delete data;
+        data = draw_buffer.read();
+        std::this_thread::sleep_for(std::chrono::milliseconds(step_time));
+    }
+    
+    move(1,1);
+}
+
+void MazeCurses::draw_empty_board() {
+    move(0,0);
+    std::string top(cols*2 + 1, '_');
+    top += '\n';
+    std::string side = "";
+    for (int i = 0; i < cols; i++) {
+        side += "|_";
+    }
+    side += "|\n";
+    
+    printw(top.c_str());
+    for (int i = 0; i < cols; i++) {
+        printw(side.c_str());
+    }
+    refresh();
+}
+    
+void MazeCurses::build_maze() {
+    std::stack<int> stack;
+    
+    maze[0].visited = true;
+    stack.push(0);
+    int current_idx = 0;
+    while(current_idx != -1) {
+        queue_draw(current_idx);
+
+        current_idx = get_next(current_idx, stack);
+        while (current_idx == -1 && !stack.empty()) {
+            int n = stack.top();
+            stack.pop();
+            current_idx = get_next(n, stack);
+        }
+    }
+    
+    draw_buffer.write(PrintData::kill);
+}

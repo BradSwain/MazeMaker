@@ -1,13 +1,7 @@
-#include <ncurses.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iostream>
 #include <string>
-#include <stack>
-#include <vector>
-#include <chrono>
-#include <thread>
-#include <time.h>
 
 #include "maze.h"
 
@@ -82,48 +76,27 @@ void read_input_flags(int argc, char* argv[]) {
             struct winsize win_size;
             ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
             int max_cols = (win_size.ws_col-1)/2;
-            int max_rows = win_size.ws_row-1;
+            int max_rows = win_size.ws_row-2;
 
             GLOB_COLS = GLOB_COLS > max_cols? max_cols : GLOB_COLS;
             GLOB_ROWS = GLOB_ROWS > max_rows? max_rows : GLOB_ROWS;
         }
     }
 }
-void draw_empty_board() {
-    move(0,0);
-    std::string top(GLOB_COLS*2 + 1, '_');
-    top += '\n';
-    std::string side = "";
-    for (int i = 0; i < GLOB_COLS; i++) {
-        side += "|_";
-    }
-    side += "|\n";
-    
-    printw(top.c_str());
-    for (int i = 0; i < GLOB_COLS; i++) {
-        printw(side.c_str());
-    }
-    refresh();
-}
 
 int main(int argc, char* argv[]) {
     read_input_flags(argc, argv);
-    srand(time(NULL));
     
-    
-    //initscr();
-    //curs_set(0);
+    initscr();
+    curs_set(0);
     Maze* m = nullptr;
     do {
-        //draw_empty_board();
         delete m; //stack overflow this should be fine on nullptr...we shall see...
-        m = new Maze(GLOB_COLS, GLOB_ROWS);
-        //move(1,1);
-        //refresh();
+        m = new MazeCurses(GLOB_COLS, GLOB_ROWS, GLOB_SLOW_STEP);
     } while(GLOB_ENDLESS);
     
-    //getch();
-    //endwin();
+    getch();
+    endwin();
     
     std::cout<<m->to_string();
     
