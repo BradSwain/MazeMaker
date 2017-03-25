@@ -9,22 +9,26 @@
 #include <thread>
 #include <time.h>
 
-#define DEFAULT_SIZE 10
-#define DEFAULT_STEP 100
-int GLOB_SIZE;
-int GLOB_SLOW_STEP;
-int GLOB_ENDLESS;
+#include "maze.h"
+
+const int DEFAULT_STEP = 100;
+const int STANDARD_SIZE = 10;
+int GLOB_COLS = STANDARD_SIZE;
+int GLOB_ROWS = STANDARD_SIZE;
+int GLOB_SLOW_STEP = DEFAULT_STEP;
+int GLOB_ENDLESS = 0;
 
 void read_input_flags(int argc, char* argv[]) {
-    GLOB_SIZE = DEFAULT_SIZE;
-    GLOB_SLOW_STEP = DEFAULT_STEP;
-    GLOB_ENDLESS = 0;
     if (argc > 1) {
         int i = 0;
         for (i = 1; i < argc; i++) {
             std::string arg = std::string(argv[i]);
             if (arg[0] == '-' && arg.size() > 1) {
                 switch(arg[1]) {
+                     //Endless
+                    case 'e':
+                        GLOB_ENDLESS = 1;
+                    break;
                     //Step
                     case 's':
                         GLOB_SLOW_STEP = DEFAULT_STEP;
@@ -34,266 +38,94 @@ void read_input_flags(int argc, char* argv[]) {
                             } catch (...) {/*Sssshhhh*/}
                         }
                     break;
-                    //Endless
-                    case 'e':
-                        GLOB_ENDLESS = 1;
+                    //set both rows and cols
+                    case 'x':
+                        if (arg.size() > 2 && arg[2] == '=') {
+                            try {
+                                GLOB_COLS = std::stoi(arg.substr(3));
+                                GLOB_ROWS = GLOB_COLS;
+                            } catch (...) {/*Sssshhhh*/}
+                        }
+                    break;
+                    //set rows
+                    case 'r':
+                        if (arg.size() > 2 && arg[2] == '=') {
+                            try {
+                                GLOB_ROWS = std::stoi(arg.substr(3));
+                            } catch (...) {/*Sssshhhh*/}
+                        }
+                    break;
+                    //set cols
+                    case 'c':
+                        if (arg.size() > 2 && arg[2] == '=') {
+                            try {
+                                GLOB_COLS = std::stoi(arg.substr(3));
+                            } catch (...) {/*Sssshhhh*/}
+                        }
                     break;
                     default:
                         std::cout << arg << " is not a recognised flag.\t\t\tYou fool!\n";
                     break;
                 }
-            } else if (i == argc - 1) {
-                try {
-                    GLOB_SIZE = std::stoi(arg);
-                    struct winsize win_size;
-                    ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
-                    int max_col = (win_size.ws_col-1)/2;
-                    int max_row = win_size.ws_row-1;
-                    int max_size = max_col < max_row? max_col : max_row; 
-                    GLOB_SIZE = GLOB_SIZE > max_size? max_size : GLOB_SIZE;
-                } catch(...) {/*Only dreams now*/}
             }
+        }
+        //Try and parse last item as int to be used as row/col value
+        if (argv[argc-1][0] != '-') {
+            try {
+                GLOB_COLS = std::stoi(std::string(argv[argc-1]));
+                GLOB_ROWS = GLOB_COLS;
+            } catch (...) {/*Sssshhhh*/}
+        }
+        
+        //ensure maze is not bigger than screen
+        if (GLOB_COLS != STANDARD_SIZE | GLOB_ROWS != STANDARD_SIZE) {
+            struct winsize win_size;
+            ioctl(STDOUT_FILENO,TIOCGWINSZ,&win_size);
+            int max_cols = (win_size.ws_col-1)/2;
+            int max_rows = win_size.ws_row-1;
+
+            GLOB_COLS = GLOB_COLS > max_cols? max_cols : GLOB_COLS;
+            GLOB_ROWS = GLOB_ROWS > max_rows? max_rows : GLOB_ROWS;
         }
     }
 }
 void draw_empty_board() {
     move(0,0);
-    std::string top(GLOB_SIZE*2 + 1, '_');
+    std::string top(GLOB_COLS*2 + 1, '_');
     top += '\n';
     std::string side = "";
-    for (int i = 0; i < GLOB_SIZE; i++) {
+    for (int i = 0; i < GLOB_COLS; i++) {
         side += "|_";
     }
     side += "|\n";
     
     printw(top.c_str());
-    for (int i = 0; i < GLOB_SIZE; i++) {
+    for (int i = 0; i < GLOB_COLS; i++) {
         printw(side.c_str());
     }
     refresh();
 }
-
-
-class Maze {
-    struct Node {
-        bool up, right, down, left, visited;
-        int index, row, col;
-        
-        Node() : up(false), right(false), down(false), left(false), visited(false){}
-        void set_index(int i) {
-            index = i;
-            row = index / GLOB_SIZE;
-            col = index % GLOB_SIZE;
-            if (index != GLOB_SIZE * row + col) {
-                std::cout << "ERROR\n";
-            }
-        }
-    };
-    
-    Node* maze;
-    int size;
-    std::stack<int> stack;
-    
-    bool is_idx_top(int i) {
-        return i < size;
-    }
-    bool is_idx_bottom(int i) {
-        static const int max_non_bottom_index = size * (size-1) - 1;
-        return i > max_non_bottom_index;
-    }
-    bool is_idx_right(int i) {
-        return (i+1) % size == 0;
-    }
-    bool is_idx_left(int i) {
-        return i % size == 0;
-    }
-    
-    void draw_idx(int i, bool recurse = true) {
-        char middle[4];
-        middle[3] = '\0';
-        if (is_idx_bottom(i)) {
-            middle[0] = maze[i].left? '_' : '|';
-            middle[1] = '_';
-            middle[2] = maze[i].right? '_' : '|';
-        } else {
-            middle[0] = maze[i].left? ' ' : '|';
-            middle[1] = maze[i].down? ' ' : '_';
-            middle[2] = maze[i].right? ' ' : '|';
-        }
-        mvprintw(maze[i].row + 1, maze[i].col*2, middle);
-        
-        if (recurse) {
-            if (!is_idx_bottom(i)) {
-                draw_idx(i + size, false);
-            }
-            if (!is_idx_top(i)) {
-                draw_idx(i - size, false);
-            }
-        }
-        
-        refresh();
-    }
-    
-    int check_up(int idx) {
-        if (!is_idx_top(idx) && !maze[idx - size].visited) {
-            maze[idx].up = true;
-            stack.push(idx);
-
-            idx -= size;
-            maze[idx].visited = true;
-            maze[idx].down = true;
-            
-            return idx;
-        }
-        
-        return -1;
-    }
-    int check_down(int idx) {
-        if (!is_idx_bottom(idx) && !maze[idx + size].visited) {
-            maze[idx].down = true;
-            stack.push(idx);
-
-            idx += size;
-            maze[idx].visited = true;
-            maze[idx].up = true;
-            
-            return idx;
-        }
-        
-        return -1;
-    }
-    int check_left(int idx) {
-        if (!is_idx_left(idx) && !maze[idx - 1].visited) {
-            maze[idx].left = true;
-            stack.push(idx);
-
-            idx -= 1;
-            maze[idx].visited = true;
-            maze[idx].right = true;
-            
-            return idx;
-        }
-        
-        return -1;
-    }
-    int check_right(int idx) {
-        if (!is_idx_right(idx) && !maze[idx + 1].visited) {
-            maze[idx].right = true;
-            stack.push(idx);
-
-            idx += 1;
-            maze[idx].visited = true;
-            maze[idx].left = true;
-            
-            return idx;
-        }
-        
-        return -1;
-    }
-    int check_next(int idx) {
-        int orig = rand()%4;
-        int curr = orig;
-        int next_idx = -1;
-        
-        do {
-            switch(curr) {
-                case 0:
-                    next_idx = check_up(idx);
-                    curr++;
-                break;
-                case 1:
-                    next_idx = check_down(idx);
-                    curr++;
-                break;
-                case 2:
-                    next_idx = check_left(idx);
-                    curr++;
-                break;
-                case 3:
-                    next_idx = check_right(idx);
-                    curr = 0;
-                break;
-            }
-        } while (next_idx == -1 && orig != curr);
-        
-        draw_idx(idx);
-        std::this_thread::sleep_for(std::chrono::milliseconds(GLOB_SLOW_STEP));
-        
-        if (next_idx == -1 && !stack.empty()) {
-            int n = stack.top();
-            stack.pop();
-            next_idx = check_next(n);
-        }
-        
-        return next_idx;
-    }
-    
-    
-    
-public:
-    Maze(int _size = DEFAULT_SIZE) : size(_size) {
-        int len = size * size;
-        maze = new Node[len];
-        for (int i = 0; i < len; i++) {
-            maze[i].set_index(i);
-        }
-        
-        maze[0].visited = true;
-        stack.push(0);
-        int current_idx = 0;
-        while(current_idx != -1) {
-            current_idx = check_next(current_idx);
-        }
-    }
-    ~Maze() {
-        delete []maze;
-    }
-    
-    std::string create_string() {
-        std::string str = "";
-        for (int col = 0; col < size*2 +1; col++) {
-           str += "_";
-        }
-        str += "\n";
-        for (int row = 0; row < size-1; row++) {
-            for (int col = 0; col < size; col++) {
-                int i = size*row + col;
-                str += maze[i].left? ' ' : '|';
-                str += maze[i].down? ' ' : '_';
-            }
-            str += "|\n";
-        }
-        for (int col = 0; col < size; col++) {
-            int i = size*(size-1) + col;
-            str += maze[i].left? '_' : '|';
-            str += maze[i].down? ' ' : '_';
-        }
-        str += "|\n";
-        
-        return str;
-    }
-};
 
 int main(int argc, char* argv[]) {
     read_input_flags(argc, argv);
     srand(time(NULL));
     
     
-    initscr();
-    curs_set(0);
+    //initscr();
+    //curs_set(0);
     Maze* m = nullptr;
     do {
-        draw_empty_board();
+        //draw_empty_board();
         delete m; //stack overflow this should be fine on nullptr...we shall see...
-        m = new Maze(GLOB_SIZE);
-        move(1,1);
-        refresh();
+        m = new Maze(GLOB_COLS, GLOB_ROWS);
+        //move(1,1);
+        //refresh();
     } while(GLOB_ENDLESS);
     
-    getch();
-    endwin();
+    //getch();
+    //endwin();
     
-    std::cout<<m->create_string();
+    std::cout<<m->to_string();
     
     return 0;
 }
